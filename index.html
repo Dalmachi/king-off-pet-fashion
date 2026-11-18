@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Pet Fashion King — Character Sheets</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%; height:100dvh; overflow:hidden}
+  body{background:#E20707; user-select:none; -webkit-user-select:none; font-family:Poppins,sans-serif}
+  /* frame: normally the screen; on upright phones it is turned sideways so the pages can be much bigger */
+  .frame{position:fixed; left:50%; top:50%; width:100vw; height:100vh; height:100dvh; translate:-50% -50%;
+    display:flex; align-items:center; justify-content:center}
+  .frame.rot{width:100vh; width:100dvh; height:100vw; rotate:90deg}
+  .stage{position:relative; perspective:2600px; --ph:calc(var(--pw) / 1.545)}
+  .viewport{position:relative; width:calc(var(--pw)*2); height:var(--ph)}
+  .book{position:relative; width:calc(var(--pw)*2); height:var(--ph); transform-style:preserve-3d; transition:transform .9s cubic-bezier(.45,.05,.3,1)}
+  .book::before{content:"";position:absolute;inset:0;box-shadow:0 12px 28px rgba(70,0,0,.45);border-radius:4px;pointer-events:none}
+  .leaf{position:absolute; left:50%; top:0; width:50%; height:100%; transform-origin:left center;
+    transform-style:preserve-3d; transition:transform .9s cubic-bezier(.45,.05,.3,1); cursor:pointer}
+  .leaf.flipped{transform:rotateY(-180deg)}
+  .face{position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; overflow:hidden; background:#fff}
+  .face.back{transform:rotateY(180deg)}
+  .face img{width:100%; height:100%; object-fit:contain; display:block; pointer-events:none}
+  .face.front::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.18),rgba(0,0,0,.04) 6%,transparent 12%)}
+  .face.back::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(270deg,rgba(0,0,0,.18),rgba(0,0,0,.04) 6%,transparent 12%)}
+  .face.front{border-radius:0 4px 4px 0} .face.back{border-radius:4px 0 0 4px}
+  .noanim .leaf,.noanim .book{transition:none!important}
+
+  .nav{position:absolute; top:50%; translate:0 -50%; z-index:500; width:52px; height:52px; border-radius:50%;
+    border:2px solid #fff; background:rgba(80,0,0,.4); color:#fff; font-size:34px; line-height:1;
+    display:flex; align-items:center; justify-content:center; padding-bottom:4px; cursor:pointer; transition:background .2s, opacity .2s}
+  .nav:hover:not(:disabled){background:rgba(80,0,0,.75)}
+  .nav:disabled{opacity:.3; cursor:default}
+  .nav.prev{left:-72px} .nav.next{right:-72px}
+  .small .nav{width:40px;height:40px;font-size:26px}
+  .small .nav.prev{left:-48px} .small .nav.next{right:-48px}
+  .count{display:none; position:absolute; left:0; right:0; text-align:center; color:#fff; font-weight:600; font-size:14px}
+
+  /* one page at a time */
+  .single .viewport{width:var(--pw); overflow:hidden; border-radius:4px; box-shadow:0 12px 28px rgba(70,0,0,.45)}
+  .single .book::before{display:none}
+  .single.side-r .book{transform:translateX(-50%)}
+  .single .face{border-radius:0}
+  .single .face::after{display:none}
+  .single .count{display:block; bottom:-26px}
+  /* arrows under the page (tall screens) */
+  .below{margin-bottom:80px}
+  .below .nav{top:auto; bottom:-72px; translate:0 0}
+  .below .nav.prev{left:calc(50% - 110px)} .below .nav.next{right:calc(50% - 110px)}
+  .below .count{bottom:-58px}
+
+  .turn{position:fixed; left:50%; top:50%; translate:-50% -50%; z-index:900; background:rgba(60,0,0,.75); color:#fff;
+    padding:10px 16px; border-radius:24px; font-size:14px; font-weight:500; white-space:nowrap; transition:opacity .6s; pointer-events:none}
+  .turn.hide{opacity:0}
+  /* ---- phone: one page at a time, each page flips over to show the next ---- */
+  .phone{display:none; position:relative; perspective:2000px; margin-bottom:84px}
+  .phone .pages{position:relative; width:var(--pp); height:calc(var(--pp) / 1.545); box-shadow:0 12px 28px rgba(70,0,0,.45); border-radius:4px; background:#fff}
+  .phone .pg{position:absolute; inset:0; background:#fff; transform-origin:left center; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+    transition:transform .8s cubic-bezier(.45,.05,.3,1); border-radius:4px; overflow:hidden}
+  .phone .pg img{width:100%; height:100%; object-fit:contain; display:block; pointer-events:none}
+  .phone .pg.gone{transform:rotateY(-180deg)}
+  .phone .pg::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .4s;background:linear-gradient(90deg,rgba(0,0,0,.25),transparent 70%)}
+  .phone .pg.turning::after{opacity:1}
+  .phone .nav{top:auto; bottom:-72px; translate:0 0; width:48px; height:48px; font-size:30px}
+  .phone .nav.prev{left:calc(50% - 110px)} .phone .nav.next{right:calc(50% - 110px)}
+  .phone .pcount{position:absolute; left:0; right:0; bottom:-58px; text-align:center; color:#fff; font-weight:600; font-size:15px}
+  body.is-phone .phone{display:block}
+  body.is-phone .stage{display:none}
+</style>
+</head>
+<body>
+<div class="frame" id="frame">
+<div class="stage noanim" id="stage">
+  <button class="nav prev" id="prev" aria-label="Previous page">&#8249;</button>
+  <button class="nav next" id="next" aria-label="Next page">&#8250;</button>
+  <div class="count" id="count"></div>
+  <div class="viewport">
+  <div class="book" id="book">
+    <div class="leaf">
+      <div class="face front"></div>
+      <div class="face back"><img src="img/anthony-turn.jpg" alt="Anthony turnaround"></div>
+    </div>
+    <div class="leaf">
+      <div class="face front"><img src="img/anthony-detail.jpg" alt="Anthony details"></div>
+      <div class="face back"><img src="img/boy-turn.jpg" alt="Boy in red hoodie turnaround"></div>
+    </div>
+    <div class="leaf">
+      <div class="face front"><img src="img/boy-detail.jpg" alt="Boy in red hoodie details"></div>
+      <div class="face back"><img src="img/rob-turn.jpg" alt="Rob turnaround"></div>
+    </div>
+    <div class="leaf">
+      <div class="face front"><img src="img/rob-detail.jpg" alt="Rob details"></div>
+      <div class="face back"><img src="img/mother-turn.jpg" alt="Anthony's mother turnaround"></div>
+    </div>
+    <div class="leaf">
+      <div class="face front"><img src="img/mother-detail.jpg" alt="Anthony's mother details"></div>
+      <div class="face back"><img src="img/grandma-turn.jpg" alt="Anthony's grandma turnaround"></div>
+    </div>
+    <div class="leaf">
+      <div class="face front"><img src="img/grandma-detail.jpg" alt="Anthony's grandma details"></div>
+      <div class="face back"><img src="img/bandit-turn.jpg" alt="Bandit turnaround"></div>
+    </div>
+    <div class="leaf">
+      <div class="face front"><img src="img/bandit-detail.jpg" alt="Bandit details"></div>
+      <div class="face back"><img src="img/boogie-turn.jpg" alt="Boogie turnaround"></div>
+    </div>
+    <div class="leaf">
+      <div class="face front"><img src="img/boogie-detail.jpg" alt="Boogie details"></div>
+      <div class="face back"><img src="img/kimba-turn.jpg" alt="Kimba turnaround"></div>
+    </div>
+    <div class="leaf">
+      <div class="face front"><img src="img/kimba-detail.jpg" alt="Kimba details"></div>
+      <div class="face back"></div>
+    </div>
+  </div>
+  </div>
+</div>
+</div>
+<div class="frame" id="pframe" style="pointer-events:none"><div class="phone" id="phone" style="pointer-events:auto">
+  <div class="pages" id="pages"></div>
+  <button class="nav prev" id="pprev" aria-label="Previous page">&#8249;</button>
+  <div class="pcount" id="pcount"></div>
+  <button class="nav next" id="pnext" aria-label="Next page">&#8250;</button>
+</div></div>
+<script>
+  const R=1.545;
+  const leaves=[...document.querySelectorAll('.leaf')];
+  const frame=document.getElementById('frame'), stage=document.getElementById('stage');
+  const prevB=document.getElementById('prev'), nextB=document.getElementById('next'), countEl=document.getElementById('count');
+  const MIN=1, MAX=leaves.length-1;
+  let cur=MIN, side='L', busy=false, single=false;
+
+  // build the phone page stack (reading order: left page, right page, next spread...)
+  const pagesEl=document.getElementById('pages'), phoneSrc=[];
+  for(let s=1; s<leaves.length; s++){
+    phoneSrc.push(leaves[s-1].querySelector('.back img'), leaves[s].querySelector('.front img'));
+  }
+  const pgs = phoneSrc.map((im,i)=>{
+    const d=document.createElement('div'); d.className='pg';
+    const c=im.cloneNode(); d.appendChild(c); d.style.zIndex=phoneSrc.length-i;
+    d.addEventListener('click',()=>pturn(1)); pagesEl.appendChild(d); return d;
+  });
+  let p=0, phone=false;
+  const pprev=document.getElementById('pprev'), pnext=document.getElementById('pnext'), pcount=document.getElementById('pcount');
+  function playout(){
+    pgs.forEach((g,i)=>g.classList.toggle('gone', i<p));
+    pprev.disabled=p<=0; pnext.disabled=p>=pgs.length-1;
+    pcount.textContent=(p+1)+' / '+pgs.length;
+  }
+  function pturn(dir){
+    if(busy) return;
+    const np=p+dir; if(np<0||np>=pgs.length) return;
+    busy=true;
+    const g = dir>0 ? pgs[p] : pgs[np];
+    g.classList.add('turning');
+    p=np; playout();
+    setTimeout(()=>{ g.classList.remove('turning'); busy=false; }, 800);
+  }
+  pprev.onclick=()=>pturn(-1); pnext.onclick=()=>pturn(1);
+
+  function fit(){
+    const vw=innerWidth, vh=innerHeight;
+    const wasPhone=phone;
+    phone = vw < vh && vw < 700;               // upright phone: one page at a time
+    document.body.classList.toggle('is-phone', phone);
+    if(phone){
+      if(!wasPhone){ p=(cur-1)*2; playout(); }  // keep your place when switching
+      document.getElementById('phone').style.setProperty('--pp', Math.floor(Math.min(vw-20, (vh-180)*R))+'px');
+      return;
+    }
+    if(wasPhone){ cur=Math.floor(p/2)+1; }
+    const small = vw < 800, gap = small ? 100 : 180;
+    const pw = Math.min((vw - gap) / 2, (vh - 30) * R);
+    stage.classList.toggle('small', small);
+    stage.style.setProperty('--pw', Math.floor(pw) + 'px');
+    layout();
+  }
+  function layout(){
+    leaves.forEach((l,i)=>{
+      const f=i<cur; l.classList.toggle('flipped',f);
+      if(!l.classList.contains('turning')) l.style.zIndex = f ? i+1 : leaves.length-i;
+    });
+    stage.classList.toggle('side-r', single && side==='R');
+    countEl.textContent = ((cur-1)*2 + (side==='R'?2:1)) + ' / ' + (MAX*2);
+    if(single){ prevB.disabled = cur<=MIN && side==='L'; nextB.disabled = cur>=MAX && side==='R'; }
+    else { prevB.disabled=cur<=MIN; nextB.disabled=cur>=MAX; }
+  }
+  function flip(dir){
+    if(cur+dir<MIN||cur+dir>MAX) return false;
+    busy=true;
+    const leaf=leaves[dir>0 ? cur : cur-1];
+    leaf.classList.add('turning'); leaf.style.zIndex=100;
+    cur+=dir;
+    setTimeout(()=>{ leaf.classList.remove('turning'); layout(); busy=false; }, 900);
+    return true;
+  }
+  function turn(dir){
+    if(busy) return;
+    if(single){
+      if(dir>0){ if(side==='L') side='R'; else if(flip(1)) side='L'; }
+      else     { if(side==='R') side='L'; else if(flip(-1)) side='R'; }
+    } else {
+      // keep "side" in step so switching layouts lands on the same spread
+      flip(dir); side='L';
+    }
+    layout();
+  }
+  leaves.forEach((l,i)=>l.addEventListener('click',()=>{ if(single) turn(1); else turn(i<cur?-1:1); }));
+  prevB.onclick=()=>turn(-1); nextB.onclick=()=>turn(1);
+  addEventListener('keydown',e=>{ const f=phone?pturn:turn; if(e.key==='ArrowRight'||e.key===' ') f(1); if(e.key==='ArrowLeft') f(-1); });
+  let sx=null, sy=null;
+  addEventListener('touchstart',e=>{ sx=e.touches[0].clientX; sy=e.touches[0].clientY; },{passive:true});
+  addEventListener('touchend',e=>{
+    if(sx==null) return;
+    const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+    // when the book is turned sideways, a swipe along the page runs up/down the screen
+    if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)) { if(phone) pturn(dx<0?1:-1); else turn(dx<0?1:-1); }
+    sx=sy=null;
+  });
+  addEventListener('resize',fit);
+  addEventListener('orientationchange',()=>setTimeout(fit,200));
+  fit();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>stage.classList.remove('noanim')));
+</script>
+</body>
+</html>
